@@ -1,10 +1,59 @@
 import { RequestHandler, Response } from "express";
 import { ExtendedRequest } from "../types/extended-request";
 import { z } from "zod";
-import { createPost, createPostSlug, deletePost, getPostBySlug, handleCover, updatePost } from "../services/post";
+import { createPost, createPostSlug, deletePost, getAllPosts, getPostBySlug, handleCover, updatePost } from "../services/post";
 import { getUserById } from "../services/user";
 import { title } from "process";
 import {coverToUrl} from "../utils/cover-to-url"
+import slug from "slug";
+import { error } from "console";
+
+export const getPosts = async (req: ExtendedRequest, res: Response) => {
+    let page = 1;
+    if (req.query.page) {
+        page = parseInt(req.query.page as string)
+        if (page <= 0) {
+            res.json({error: 'Página inexistente'})
+            return;
+        }
+    }
+        let posts = await getAllPosts(page)
+
+        const postsToReturn = posts.map(post => ({
+            id: post.id,
+            status: post.status,
+            title: post.title,
+            createdAt: post.createdAt,
+            cover: coverToUrl(post.cover),
+            authorName: post.author?.name,
+            tags: post.tags,
+            slug: post.slug
+        }))
+        res.json({posts: postsToReturn, page})
+}
+
+export const getPost = async(req: ExtendedRequest, res: Response) => {
+    const {slug} = req.params
+
+    const post = await getPostBySlug(slug)
+    if (!post) {
+        res.json({error: 'Post inexistente'})
+        return 
+    }
+    res.json({
+        post: {
+            id: post.id,
+            title: post.title,
+            createdAt: post.createdAt,
+            cover: coverToUrl(post.cover),
+            authorName: post.author?.name,
+            tags: post.tags,
+            body: post.body,
+            slug: post.slug
+        }
+    })
+}
+
 export const addPost: RequestHandler = async (req :ExtendedRequest, res : Response) => {
     if (!req.user) return 
 
